@@ -1,19 +1,21 @@
-#!/bin/bash -eu
+#!/bin/bash -u
+
+exiterror() {
+        echo $@ | tee ${ERROR_PATH}
+        exit 1
+}
 
 echo "creating clone of instance ${INSTANCE_NAME} and storing clone ip in ${OUTPUT_PATH} (or errors in ${ERROR_PATH})"
-INSTANCE_NAME="${INSTANCE_NAME}"
+
+CLONE_NAME=${INSTANCE_NAME}-$(date +%s)
+
+gcloud sql instances clone ${INSTANCE_NAME} ${CLONE_NAME} || exiterror "gcloud clone failed with error code $?" 
 
 
-RAND=$(mktemp -u | awk '{print tolower($0)}' |grep -o '........$')
-CLONE_NAME=${INSTANCE_NAME}-${RAND}
-
-gcloud sql instances clone ${INSTANCE_NAME} ${CLONE_NAME}
-errcode=$?
-if [[ "$errcode" -ne 0]]; then
-    echo "gcloud clone failed with error code ${errcode}" > ${ERROR_PATH}
-fi
+# > ${ERROR_PATH}
 
 IP=$(gcloud sql instances list --filter=name=${CLONE_NAME} --format=json | jq -r '[.[0].ipAddresses]|.[0]|.[]|select(.type == "PRIVATE").ipAddress')
 echo $IP > ${OUTPUT_PATH}
+echo $CLONE_NAME > ${OUTPUT_PATH}.name
 
-echo "clone created at ip ${IP}"
+echo "clone $CLONE_NAME created at ip ${IP}"

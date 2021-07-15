@@ -34,9 +34,9 @@ done
 
 # ex SCHEMA: (info|subgraphs|public|chain1|sgd1)
 if [ -z "$SCHEMAS" ]; then 
-	SCHEMA_SPEC="-n $SCHEMAS"
-else
 	SCHEMA_SPEC=""
+else
+	SCHEMA_SPEC="-n $SCHEMAS"
 fi
 
 set -e
