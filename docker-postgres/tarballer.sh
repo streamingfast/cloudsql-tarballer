@@ -22,8 +22,10 @@ THREADS=${THREADS:-10}
 [ -z "$DATA_FOLDER" ] && exiterror "Variable DATA_FOLDER is unset (path to folder where pg_dump will write data: must be empty or non-existent)"
 [ -z "$OUTPUT_FILEPATH" ] && exiterror "Variable OUTPUT_FILEPATH is unset (path to file that will be created containing the produced file name"
 
-
-# find "${DATA_FOLDER}" -type d  -empty FIXME exit quickly if not empty
+mkdir -p "$DATA_FOLDER"
+if ! [ -z "$(find $DATA_FOLDER -maxdepth 0 -type d -not -empty)" ]; then 
+	exiterror "DATA_FOLDER  ($DATA_FOLDER) is not empty but it should be"
+fi
 
 echo "Waiting for previous step to produce SQL instance IP in '$REMOTE_SQL_IP_PATH' or error in '$ERROR_PATH'"
 
@@ -39,7 +41,6 @@ else
 	SCHEMA_SPEC="-n $SCHEMAS"
 fi
 
-set -e
 REMOTE_SQL_IP=$(cat "$REMOTE_SQL_IP_PATH")
 
 echo "Dumping database $REMOTE_SQL_DBNAME from remote server ${REMOTE_SQL_IP}:5432 using user $REMOTE_SQL_USERNAME to folder ${DATA_FOLDER}"
@@ -47,6 +48,7 @@ echo "Dumping database $REMOTE_SQL_DBNAME from remote server ${REMOTE_SQL_IP}:54
 export PGPASSWORD="${REMOTE_SQL_PASSWORD}"
 
 pg_dump --blobs --dbname="$REMOTE_SQL_DBNAME" --file="${DATA_FOLDER}" --format=directory --host="$REMOTE_SQL_IP" --jobs=$THREADS --port=5432 --username="$REMOTE_SQL_USERNAME" $SCHEMA_SPEC
+# FIXME find a way to only catch 'important' errors
 unset PGPASSWORD
 
 echo "Starting local postgres server and waiting for ready"
@@ -59,7 +61,7 @@ done
 echo "Restoring database $REMOTE_SQL_DBNAME into local database"
 
 ## FIXME must add the --exit-on-error flag
-pg_restore --no-owner --format=directory --jobs=$THREADS --username "${POSTGRES_USER} -d "${POSTGRES_DB}" "${DATA_FOLDER}" 
+pg_restore --no-owner --format=directory --jobs=$THREADS --username "${POSTGRES_USER}" -d "${POSTGRES_DB}" "${DATA_FOLDER}" 
 
 echo "Waiting until local database is stopped"
 pkill postgres
@@ -67,7 +69,7 @@ while sleep 1; do
     pg_isready || break
 done
 
-cd $PGDATA && tar czf "${DATA_FOLDER}/pgdata.tar.gz" .
+FILENAME=pgdata-$(date +%s).tar.gz
+cd $PGDATA && tar czf "${DATA_FOLDER}/${FILENAME}" .
 
-echo "${DATA_FOLDER}/pgdata.tar.gz" > "$OUTPUT_FILEPATH"
-
+echo "${DATA_FOLDER}/${FILENAME}" > "$OUTPUT_FILEPATH"
