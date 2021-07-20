@@ -55,6 +55,8 @@ echo "Starting local postgres server and waiting for ready"
 
 docker-entrypoint.sh postgres &
 while sleep 1; do
+    # initialization phase by docker-entrypoint would wrongly show pg as ready
+    pgrep -f listen_addresses= >/dev/null && continue
     pg_isready && break
 done
 
