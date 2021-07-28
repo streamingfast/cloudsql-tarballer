@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tarballer
+spec:
+  template:
+    spec:
+      serviceAccount: gcp-account-that-can-clone-cloudsql-and-write-to-gs
+      serviceAccountName: gcp-account-that-can-clone-cloudsql-and-write-to-gs
+      volumes:
+      - name: data
+        emptyDir: {}
+      containers:
+      - name: tarballer
+        image: dfuse/tarballer:0.0.7
+        env:
+        #- name: DIRECT_DUMP_FROM_REMOTE_IP # use this if you already have an available instance not being written to
+        #  value: 10.1.2.3
+        - name: SCHEMAS
+          value: ""
+        - name: GCP_INSTANCE_NAME
+          value: my-instance-name
+        - name: PGDATA
+          value: /data/pgdata
+        - name: POSTGRES_PASSWORD  # tarball local pw
+          value: changeme
+        - name: POSTGRES_USER # tarball local user
+          value: graph
+        - name: POSTGRES_DB # tarball local db
+          value: mainnet
+        - name: REMOTE_SQL_DBNAME
+          value: mainnet
+        - name: REMOTE_SQL_USERNAME
+          value: graph
+        - name: THREADS
+          value: "10"
+        - name: REMOTE_SQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: k8s-prod-sql-secret
+              key: pgpass
+        - name: DATA_FOLDER
+          value: /data/dumpdata
+        - name: DEST_TARBALL_URL
+          value: gs://example-bucket/tarballs
+      restartPolicy: Never
+  backoffLimit: 0
