@@ -12,6 +12,9 @@ spec:
         emptyDir: {}
       containers:
       - name: tarballer
+        command: # for some reason, the entrypoint does not behave correctly without calling 'bash' explicitely
+        - bash
+        - /tarballer.sh
         image: dfuse/tarballer:0.0.7
         env:
         #- name: DIRECT_DUMP_FROM_REMOTE_IP # use this if you already have an available instance not being written to
